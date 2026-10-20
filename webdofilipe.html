@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Controlo de IPs</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #2ecc71;
+            --dark: #1a252f;
+            --light: #ecf0f1;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--light); color: var(--dark); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { width: 260px; background-color: var(--primary); color: white; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .sidebar h2 { font-size: 20px; margin-bottom: 30px; text-align: center; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        .nav-links { list-style: none; flex-grow: 1; }
+        .nav-links li { padding: 12px 15px; margin-bottom: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; cursor: pointer; transition: 0.3s; }
+        .nav-links li:hover, .nav-links li.active { background: var(--accent); }
+        
+        /* Notas / Credenciais */
+        .admin-notes { background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 4px; font-size: 13px; border-left: 4px solid var(--accent); }
+        .admin-notes strong { color: #f1c40f; }
+
+        /* Main Content */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
+        header { background: white; padding: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .ip-status-badge { background: var(--dark); color: white; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+        .ip-status-badge span { color: var(--success); }
+        
+        /* Views Container */
+        .view-container { padding: 30px; flex-grow: 1; overflow-y: auto; }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Cards & Forms */
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 20px; }
+        h3 { margin-bottom: 15px; color: var(--primary); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        button { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #2980b9; }
+
+        /* Browser Simulator */
+        .browser-mock { border: 1px solid #ccc; border-radius: 8px; overflow: hidden; background: white; height: 500px; display: flex; flex-direction: column; }
+        .browser-bar { background: #ddd; padding: 10px; display: flex; gap: 10px; align-items: center; }
+        .browser-bar input { flex-grow: 1; padding: 6px; border: 1px solid #bbb; border-radius: 4px; }
+        .browser-viewport { flex-grow: 1; background: #fafafa; position: relative; }
+        .browser-iframe { width: 100%; height: 100%; border: none; }
+        .local-net-alert { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 80%; max-width: 400px; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div>
+            <h2>Painel Geral IP</h2>
+            <ul class="nav-links">
+                <li class="active" onclick="switchView('dashboard')">Painel de Controlo</li>
+                <li onclick="switchView('browser')">Navegador Integrado</li>
+                <li onclick="switchView('settings')">Gerir Dispositivos</li>
+            </ul>
+        </div>
+        
+        <!-- Bloco de Notas Requisitado -->
+        <div class="admin-notes">
+            <strong>Notas de Acesso:</strong><br>
+            Utilize as credenciais padrão do sistema:<br>
+            • Login: <code>admin</code><br>
+            • Pass: <code>admin</code>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <header>
+            <h1>Gestão Administrativa de Rede</h1>
+            <!-- Deteta e mostra o IP onde está ligado -->
+            <div class="ip-status-badge">IP Atual: <span id="current-ip">A carregar...</span></div>
+        </header>
+
+        <div class="view-container">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="dashboard" class="view active">
+                <div class="card">
+                    <h3>Ligação Rápida a Dispositivos Locais</h3>
+                    <p style="margin-bottom: 15px; color: #666;">Insira o final do IP para aceder diretamente à gama local 192.168.1.X.</p>
+                    <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                        <span style="font-size: 18px; font-weight: bold;">192.168.1.</span>
+                        <input type="text" id="local-ip-suffix" placeholder="1" style="width: 100px; text-align: center;" maxlength="3">
+                        <button onclick="connectToLocalIP()">Ligar ao Dispositivo</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Dispositivos na Rede Local</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Dispositivo</th>
+                                <th>Endereço IP</th>
+                                <th>Estado</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Gateway / Router</td>
+                                <td>192.168.1.1</td>
+                                <td><span style="color: var(--success);">● Online</span></td>
+                                <td><button onclick="launchIP('192.168.1.1')">Aceder</button></td>
+                            </tr>
+                            <tr>
+                                <td>Servidor NAS</td>
+                                <td>192.168.1.50</td>
+                                <td><span style="color: var(--success);">● Online</span></td>
+                                <td><button onclick="launchIP('192.168.1.50')">Aceder</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VIEW: BROWSER INTERNO -->
+            <div id="browser" class="view">
+                <div class="card">
+                    <h3>Navegação na NET e Intranet</h3>
+                    <p style="margin-bottom: 10px; font-size: 14px; color: #555;">Simulador de navegação. Nota: Sites externos rígidos (como o Google) bloqueiam carregamento direto em iframes por segurança (politica X-Frame-Options). IPs locais simulam o painel de administração.</p>
+                </div>
+                <div class="browser-mock">
+                    <div class="browser-bar">
+                        <button onclick="browserGoHome()">🏠 Inicio</button>
+                        <input type="text" id="browser-url" value="https://wikipedia.org" onkeypress="if(event.key === 'Enter') loadURL()">
+                        <button onclick="loadURL()">Ir</button>
+                    </div>
+                    <div class="browser-viewport" id="browser-viewport">
+                        <!-- O Iframe permite navegar na internet e abrir os IPs locais configurados -->
+                        <iframe id="web-iframe" class="browser-iframe" src="https://wikipedia.org"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: SETTINGS -->
+            <div id="settings" class="view">
+                <div class="card">
+                    <h3>Adicionar Novo IP para Controlo</h3>
+                    <div class="form-group">
+                        <label>Nome do Equipamento</label>
+                        <input type="text" id="dev-name" placeholder="Ex: Câmara IP Cozinha">
+                    </div>
+                    <div class="form-group">
+                        <label>Endereço IP</label>
+                        <input type="text" id="dev-ip" placeholder="Ex: 192.168.1.100">
+                    </div>
+                    <button onclick="alert('Configuração guardada com sucesso no ficheiro local!')">Registar Dispositivo</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Função para alternar entre as abas do menu administrativo
+        function switchView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-links li').forEach(l => l.classList.remove('active'));
+            
+            document.getElementById(viewId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Deteta automaticamente o IP Público em que está ligado usando uma API gratuita
+        async function fetchCurrentIP() {
+            try {
+                const response = await fetch('https://ipify.org');
+                const data = await response.json();
